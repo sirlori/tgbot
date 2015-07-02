@@ -32,6 +32,7 @@ func NewBot(token string) (Bot, error) {
 	}, nil
 }
 
+//This functionality is still in development. Don't use it
 func InitBot() Bot {
 	var bot Bot
 	ok := false
