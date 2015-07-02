@@ -3,15 +3,16 @@ package tgbot
 
 import (
 	"fmt"
-	"github.com/syfaro/telegram-bot-api"
 	"log"
 	"strings"
+
+	"github.com/syfaro/telegram-bot-api"
 )
 
 // Config holds all plugin settings
 type Config map[string]string
 
-// Bot is all the methods you need to operate the bot.
+//Bot is all the methods you need to operate the bot.
 type Bot struct {
 	API     *tgbotapi.BotAPI
 	Plugins []Plugin
@@ -31,27 +32,32 @@ func NewBot(token string) (Bot, error) {
 }
 
 func InitBot() Bot {
-	fmt.Println("What is your bot token?")
-	var token string
-	fmt.Scanln(&token)
+	var bot Bot
+	ok := false
+	for !ok {
+		fmt.Println("What is your bot token?")
+		var token string
+		fmt.Scanln(&token)
 
-	bot, err := NewBot(token)
-	if err != nil {
-		log.Println("Your token is invalid!")
-		return InitBot()
+		bot, err = NewBot(token)
+		if err != nil {
+			log.Println("Your token is invalid!\nRetry.")
+			continue
+		}
+
+		log.Printf("Are you sure you wish to use the account %s? [Y/n] ", bot.API.Self.UserName)
+		var answer string
+		fmt.Scanln(&answer)
+		if strings.ToLower(answer) == "n" {
+			continue
+		}
+		ok = true
 	}
-
-	log.Printf("Are you sure you wish to use the account %s? [Y/n] ", bot.API.Self.UserName)
-	var answer string
-	fmt.Scanln(&answer)
-
-	if strings.ToLower(answer) == "n" {
-		return InitBot()
-	}
-
 	return bot
 }
 
+// This starts your plugin and run their tasks in a goroutine
+// So keep attention in what you are doing
 func (bot *Bot) Start() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -59,14 +65,14 @@ func (bot *Bot) Start() {
 	updates, _ := bot.API.UpdatesChan(u)
 
 	for update := range updates {
-		args := strings.Split(update.Message.Text, " ")
-
 		for _, plugin := range bot.Plugins {
-			for _, command := range plugin.GetCommands() {
-				if args[0] == command {
-					plugin.GotCommand(update.Message, args[0], args[1:])
-				}
+			cmd, err := plugin.GetCommands().Parse(update.Message.Text)
+			if err != nil {
+
+				log.Printf(err.Error())
+				continue
 			}
+			go cmd.RunTask(&update, bot)
 		}
 	}
 }
