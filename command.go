@@ -42,15 +42,13 @@ type CommandParser struct {
 // This groups parsers and choose which
 // command to use for every update
 type MultipleParser struct {
-	Botname string
 	parsers []CommandParser
 }
 
 // Call it to create a MultiParser, that store and
 // uses your parsers to call their tasks when needed
-func NewMultipleParser(name string) MultipleParser {
+func NewMultipleParser() MultipleParser {
 	return MultipleParser{
-		name,
 		make([]CommandParser, 0, 5),
 	}
 }
