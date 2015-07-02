@@ -6,7 +6,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/syfaro/telegram-bot-api"
+	"github.com/Syfaro/telegram-bot-api"
 )
 
 // Config holds all plugin settings
@@ -14,9 +14,10 @@ type Config map[string]string
 
 //Bot is all the methods you need to operate the bot.
 type Bot struct {
-	API     *tgbotapi.BotAPI
-	Plugins []Plugin
-	Config  Config
+	API            *tgbotapi.BotAPI
+	Plugins        []Plugin
+	Config         Config
+	BeforeCommands func(*tgbotapi.BotAPI, *tgbotapi.Update)
 }
 
 // NewBot creates a new Bot instance with a token
@@ -39,7 +40,7 @@ func InitBot() Bot {
 		var token string
 		fmt.Scanln(&token)
 
-		bot, err = NewBot(token)
+		bot, err := NewBot(token)
 		if err != nil {
 			log.Println("Your token is invalid!\nRetry.")
 			continue
@@ -59,6 +60,10 @@ func InitBot() Bot {
 // This starts your plugin and run their tasks in a goroutine
 // So keep attention in what you are doing
 func (bot *Bot) Start() {
+	for _, plugin := range bot.Plugins {
+		plugin.Setup(bot.API.Debug)
+	}
+
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
@@ -66,13 +71,13 @@ func (bot *Bot) Start() {
 
 	for update := range updates {
 		for _, plugin := range bot.Plugins {
-			cmd, err := plugin.GetCommands().Parse(update.Message.Text)
+			go bot.BeforeCommands(bot.API, &update)
+			cmd, err := plugin.Commands.Parse(update.Message.Text)
 			if err != nil {
-
 				log.Printf(err.Error())
 				continue
 			}
-			go cmd.RunTask(&update, bot)
+			go cmd.RunTask(&update, bot.API)
 		}
 	}
 }
